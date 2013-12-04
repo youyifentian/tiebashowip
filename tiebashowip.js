@@ -11,9 +11,10 @@
 // @date        03/12/2013
 // @modified    04/12/2013
 // @include     http://tieba.baidu.com/p/*
+// @include     http://tieba.baidu.com/f?ct*
 // @grant       GM_xmlhttpRequest
 // @run-at      document-end
-// @version     1.0.2
+// @version     1.0.3
 // ==/UserScript==
 
 
@@ -31,27 +32,27 @@
 
 
 
-var VERSION='1.0.2';
+var VERSION='1.0.3';
 var APPNAME='贴吧IP助手';
 
 (function(){
     var $=unsafeWindow.$;
     var isAuto=1==localStorage['tiebaip'] ? 1 : 0,ipCache={},
     cssArr=['core_reply_tail','lzl_content_reply','j_lzl_m_w','core_title_btns'],
-    msg=['','IP地址为空','IP地址有误','IP信息查询失败','自动显IP','手动显IP','中国'],
+    msg=['','自动显IP','手动显IP','中国','IP地址为空','IP地址有误','本地局域网','IP信息查询失败'],
     obj=$.merge($('.'+cssArr[0]).attr('type',cssArr[0]), $('.'+cssArr[1]).attr('type',cssArr[1]));
     (function(){
-        var o=$('ul.'+cssArr[3]),e=document.createElement('li');
+        var e=document.createElement('li');
         e.innerHTML='<a class="l_lzonly tiebaipset"href="javascript:;">'+getHtml(isAuto)+'</a>';
         $(e).find('a').click(function(){
             isAuto=0==localStorage['tiebaip'] ? 1 : 0;
             localStorage['tiebaip']=isAuto;
             this.innerHTML=getHtml(isAuto);
             //console.log(isAuto);
-        });
+        }).css({"position":"absolute","margin-left":"-80px"});
         $(e).insertBefore($('ul.'+cssArr[3]).children()[0]);
         function getHtml(b){
-            return '<span class="d_lzonly_bdaside" style="color:#1D53BF;">'+(!b ? msg[4] : msg[5])+'</span>';
+            return '<span class="d_lzonly_bdaside" style="color:#1D53BF;">'+(!b ? msg[1] : msg[2])+'</span>';
         }
     })();
     for(var i=0;i<obj.length;i++){
@@ -66,7 +67,7 @@ var APPNAME='贴吧IP助手';
         e.innerHTML='<span class="ipcontent" style="display:none;"><span class="lzl_time"><img align="absmiddle" src="http://note.baidu.com/statics/images/alg/loading.gif"/>&nbsp;数据加载中...</span></span><span class="lzl_s_r showipbtn"><a href="javascript:;" style="display:;text-decoration:underline;"><b>查看IP</b></a>&nbsp;&nbsp;&nbsp;&nbsp;</span>';
         var btn=$(e).find('a');
         btn.attr('uname',getUname(o))[0].onclick=startQuery;
-        o.insertBefore(e,(cssArr[1]==$(o).attr('type') ? o.firstChild.nextSibling.nextSibling : o.firstChild));
+        o.insertBefore(e,(cssArr[1]==$(o).attr('type') ? $(o).children('span.lzl_time')[0] : o.firstChild));
         $(o).css({"margin-top":"15px"});
         if(isAuto){
             setTimeout(function(){startQuery.apply(btn[0]);},0);
@@ -79,10 +80,9 @@ var APPNAME='贴吧IP助手';
         return uname;
     }
     function startQuery(){
-        var uname=$(this).attr('uname'),ipcon=$(this).parent().siblings('span.ipcontent')[0];
+        var ipcon=$(this).parent().siblings('span.ipcontent').css({"display":""})[0];
         this.style.display='none';
-        ipcon.style.display='';
-        queryIp(uname,ipcon);
+        queryIp($(this).attr('uname'),ipcon);
     }
     function queryIp(uname,o){
         var cache=ipCache[uname],url='http://tieba.baidu.com/home/get/panel?ie=utf-8&un='+uname,ip='';
@@ -104,7 +104,7 @@ var APPNAME='贴吧IP助手';
         });
     }
     function queryIpAddress(uname,ip,o){
-        var index=ip.length ? 2 : 1,
+        var index=ip.length ? 5 : 4,
             ret={
             "status": index,
             "ip": ip,
@@ -117,18 +117,20 @@ var APPNAME='贴吧IP助手';
             "desc": "",
             "msg": msg[index]
         };
-        if(/((?:(?:25[0-5]|2[0-4]\d|[01]?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d?\d))/.test(ip)){
+        if(isIp(ip)){
             var url='http://int.dpool.sina.com.cn/iplookup/iplookup.php?format=json&ip='+ip;
             GM_xmlhttpRequest({
                 method: 'GET',
                 url: url,
                 onload: function(response){
                     var html=response.responseText,ojb={};
-                    index=3;
+                    index=7;
                     if(html.indexOf('ret')>=0){
                         obj=$.parseJSON(html);
                         if(obj.ret>0){
                             index=0;
+                        }else if(-1==obj.ret){
+                            index=6;
                         }
                     }
                     for(var _ in ret){
@@ -148,18 +150,20 @@ var APPNAME='贴吧IP助手';
         }
     }
     function showIpInfo(uname,opt,o){
-        var html='';
+        var html=opt.ip+'&nbsp;,&nbsp;';
         if(0!=opt.status){
             html+=opt.msg;
         }else{
-            html+=opt.ip+'&nbsp;,&nbsp;'+(msg[6]==opt.country ? '' : opt.country)+opt.province+'&nbsp;'+opt.city+'&nbsp;'+opt.district+'&nbsp;'+opt.isp+'&nbsp;';
+            html+=(msg[3]==opt.country ? '' : opt.country)+opt.province+'&nbsp;'+opt.city+'&nbsp;'+opt.district+'&nbsp;'+opt.isp+'&nbsp;';
             html+=opt.type || opt.desc ? '('+opt.type+'&nbsp;'+opt.desc+')' : '';
             ipCache[uname]=opt;
         }
         o.innerHTML=html;
     }
 })();
-
+function isIp(ip){
+    return /((?:(?:25[0-5]|2[0-4]\d|[01]?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d?\d))/.test(ip);
+}
 function loadJs(js) {
     var oHead = document.getElementsByTagName('HEAD')[0],
     oScript = document.createElement('script');
@@ -182,4 +186,6 @@ function googleAnalytics() {
     loadJs(js);
 }
 googleAnalytics();
+
+
 
